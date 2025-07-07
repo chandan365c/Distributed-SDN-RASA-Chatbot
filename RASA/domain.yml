@@ -1,0 +1,82 @@
+version: "3.1"
+
+intents:
+  - get_devices
+  - add_flow
+  - check_controllers
+  - nlu_fallback
+  - get_hosts
+  - block_host
+  - unblock_host
+  - get_ports
+  - get_flows
+  - show_topology
+
+entities:
+  - device_id
+  - in_port
+  - out_port
+  - priority
+  - host_id
+
+slots:
+  device_id:
+    type: text
+    influence_conversation: true
+    mappings:
+      - type: from_entity
+        entity: device_id
+
+  in_port:
+    type: text
+    influence_conversation: true
+    mappings:
+      - type: from_entity
+        entity: in_port
+
+  out_port:
+    type: text
+    influence_conversation: true
+    mappings:
+      - type: from_entity
+        entity: out_port
+
+  priority:
+    type: text
+    influence_conversation: true
+    mappings:
+      - type: from_entity
+        entity: priority
+        
+  host_id:
+    type: text
+    influence_conversation: true
+    mappings:
+      - type: from_entity
+        entity: host_id
+
+responses:
+  utter_ask_device_id:
+    - text: "Please provide the device ID."
+  utter_ask_in_port:
+    - text: "Which input port?"
+  utter_ask_out_port:
+    - text: "Which output port?"
+  utter_ask_priority:
+    - text: "What's the priority value?"
+  utter_ask_host_id:
+    - text: "Please provide the host ID."
+  utter_default:
+    - text: "Sorry, I didn't catch that. Could you rephrase?"
+
+actions:
+  - action_get_devices
+  - action_add_flow
+  - action_check_controllers
+  - action_default_fallback
+  - action_get_hosts
+  - action_block_host
+  - action_unblock_host
+  - action_get_ports
+  - action_get_flows
+  - action_show_topology
