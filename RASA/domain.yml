@@ -1,16 +1,22 @@
 version: "3.1"
 
 intents:
+  - greet
+  - goodbye
+  - affirm
+  - deny
+  - mood_happy
+  - mood_unhappy
   - get_devices
   - add_flow
   - check_controllers
-  - nlu_fallback
   - get_hosts
   - block_host
   - unblock_host
   - get_ports
   - get_flows
   - show_topology
+  - nlu_fallback
 
 entities:
   - device_id
@@ -24,59 +30,70 @@ slots:
     type: text
     influence_conversation: true
     mappings:
-      - type: from_entity
-        entity: device_id
+    - type: from_entity
+      entity: device_id
 
   in_port:
     type: text
     influence_conversation: true
     mappings:
-      - type: from_entity
-        entity: in_port
+    - type: from_entity
+      entity: in_port
 
   out_port:
     type: text
     influence_conversation: true
     mappings:
-      - type: from_entity
-        entity: out_port
+    - type: from_entity
+      entity: out_port
 
   priority:
     type: text
     influence_conversation: true
     mappings:
-      - type: from_entity
-        entity: priority
-        
+    - type: from_entity
+      entity: priority
+
   host_id:
     type: text
     influence_conversation: true
     mappings:
-      - type: from_entity
-        entity: host_id
+    - type: from_entity
+      entity: host_id
 
 responses:
-  utter_ask_device_id:
-    - text: "Please provide the device ID."
-  utter_ask_in_port:
-    - text: "Which input port?"
-  utter_ask_out_port:
-    - text: "Which output port?"
-  utter_ask_priority:
-    - text: "What's the priority value?"
-  utter_ask_host_id:
-    - text: "Please provide the host ID."
+  utter_greet:
+  - text: "Hello! I'm your ONOS network management assistant. I can help you manage devices, flows, hosts, and monitor your network topology."
+
+  utter_goodbye:
+  - text: "Goodbye! Have a great day managing your network!"
+
+  utter_happy:
+  - text: "Great to hear you're feeling good! How can I help you with your network today?"
+
+  utter_unhappy:
+  - text: "I'm sorry to hear that. Let me help you with your network management tasks."
+
+  utter_please_rephrase:
+  - text: "I'm not sure I understand. Could you please rephrase your request?"
+
   utter_default:
-    - text: "Sorry, I didn't catch that. Could you rephrase?"
+  - text: "I'm here to help you manage your ONOS network. Try saying: 'show devices' or 'add flow'."
+  utter_controller_status_help:
+  - text: "You can check the status of your controllers by typing something like 'controller status'."
 
 actions:
   - action_get_devices
   - action_add_flow
   - action_check_controllers
-  - action_default_fallback
   - action_get_hosts
   - action_block_host
   - action_unblock_host
   - action_get_ports
   - action_get_flows
   - action_show_topology
+  - action_default_fallback
+
+session_config:
+  session_expiration_time: 60
+  carry_over_slots_to_new_session: true
