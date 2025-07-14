@@ -1,76 +1,124 @@
 version: "3.1"
+
 nlu:
+- intent: greet
+  examples: |
+    - hello
+    - hi
+    - hey
+    - good morning
+    - good evening
+
+- intent: goodbye
+  examples: |
+    - bye
+    - goodbye
+    - see you later
+    - take care
+
+- intent: affirm
+  examples: |
+    - yes
+    - sure
+    - okay
+    - indeed
+
+- intent: deny
+  examples: |
+    - no
+    - never
+    - not really
+
+- intent: mood_happy
+  examples: |
+    - I am happy
+    - feeling great
+    - everything is good
+
+- intent: mood_unhappy
+  examples: |
+    - I am sad
+    - not good
+    - feeling down
 
 - intent: get_devices
   examples: |
-    - show all devices
-    - list devices
+    - show devices
+    - list all switches
     - what devices are connected
-    - get device list
-    - fetch devices from ONOS
+    - get connected switches
 
 - intent: add_flow
   examples: |
-    - add a flow from port [1](in_port) to [2](out_port) on device [of:0000000000000001](device_id)
-    - create a flow rule on device [of:0000000000000004](device_id)
-    - install flow from in_port [3](in_port) to out_port [4](out_port)
-    - push a flow rule to controller
-    - flow rule device [of:000000000000000c](device_id) from [1](in_port) to [2](out_port)
-    - set priority [30000](priority) for device [of:000000000000000f](device_id)
-    - make the device [of:000000000000000a](device_id) have a priority of [20000](priority)
+    - add flow to [of:0000000000000001](device_id) from port [1](in_port) to port [2](out_port) with priority [40000](priority)
+    - set flow on [of:0000000000000002](device_id) from port [3](in_port) to [4](out_port) at priority [30000](priority)
+    - insert flow rule for [of:0000000000000003](device_id) input port [5](in_port) output port [6](out_port)
+    - add flow rule to device [of:0000000000000001](device_id)
+    - add flow from port [2](in_port) to [3](out_port) on [of:0000000000000001](device_id)
+    - add flow to [of:0000000000000001](device_id) from port [1](in_port) to port [2](out_port) with priority [40000](priority)
+    - set flow on [of:0000000000000002](device_id) from port [3](in_port) to [4](out_port) at priority [30000](priority)
+    - insert flow rule for [of:0000000000000003](device_id) input port [5](in_port) output port [6](out_port)
+    - add flow rule to device [of:0000000000000004](device_id) from port [2](in_port) to port [3](out_port) with priority [25000](priority)
+    - push flow to [of:0000000000000001](device_id) on port [1](in_port) to [2](out_port) with priority [40000](priority)
+    - create flow on [of:0000000000000005](device_id) from port [7](in_port) to port [8](out_port)
 
 - intent: check_controllers
   examples: |
+    - show controllers
     - check controller status
-    - show controller health
-    - list available controllers
-    - which ONOS controllers are up
-    - verify controller connection
+    - are the controllers running?
+    - are all the controllers active?
+    - status of controllers
+    - controller health
 
 - intent: get_hosts
   examples: |
-    - show all hosts
     - list all hosts
-    - get host list
-    - what hosts are connected
-    - fetch all hosts
+    - show connected hosts
+    - get hosts in network
 
 - intent: block_host
   examples: |
-    - block host [0A:FC:4A:5E:45:C7](host_id)
-    - deny access to host [4A:44:A5:25:39:A1](host_id)
-    - I want to block host [A2:24:98:5A:01:26](host_id)
-    - can you block the host [0E:0A:11:68:E4:86](host_id)
+    - block host AA:BB:CC:DD:EE:FF
+    - deny access to host
+    - restrict host traffic
+    - block host [2A:2C:F4:34:B8:2E](host_id)
+    - please block host [AA:BB:CC:DD:EE:FF](host_id)
+    - deny host [00:11:22:33:44:55](host_id)
 
 - intent: unblock_host
   examples: |
-    - unblock host [CA:B4:F4:79:67:85](host_id)
-    - allow access to host [FA:C1:C3:CE:7A:13](host_id)
-    - remove block for host [9E:6F:59:BB:DC:E8](host_id)
-    - can you unblock the host [42:A2:F7:32:51:3D](host_id)
+    - unblock host AA:BB:CC:DD:EE:FF
+    - allow host
+    - permit host traffic
+    - unblock host [2A:2C:F4:34:B8:2E](host_id)
+    - allow host [AA:BB:CC:DD:EE:FF](host_id)
 
 - intent: get_ports
   examples: |
+    - show ports on of:0000000000000001
+    - list ports of device of:0000000000000002
     - show ports on device [of:0000000000000001](device_id)
-    - list ports for device [of:0000000000000002](device_id)
-    - get device [of:000000000000000c](device_id) ports
+    - ports on switch [of:0000000000000001](device_id)
 
 - intent: get_flows
   examples: |
+    - show flows on device of:0000000000000001
+    - get flow table for of:0000000000000002
     - show flows on device [of:0000000000000001](device_id)
-    - list all flows on [of:0000000000000002](device_id)
-    - get flow table of device [of:000000000000000d](device_id)
+    - get all flows on [of:0000000000000005](device_id)
+    - display flows on [of:0000000000000003](device_id)
+    - flow table for [of:0000000000000012](device_id)
+    - show flows on device [of:0000000000000001](device_id)
+    - flows on switch [of:0000000000000001](device_id)
 
 - intent: show_topology
   examples: |
     - show network topology
-    - display current topology
-    - what is the topology
-    - visualize the network
+    - get topology
+    - visualize topology
 
 - intent: nlu_fallback
   examples: |
-    - ajdklsajd
-    - what
-    - say again
-    - eh?
+    - random gibberish
+    - asdfghjk
