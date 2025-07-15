@@ -52,15 +52,25 @@ nlu:
   examples: |
     - add flow to [of:0000000000000001](device_id) from port [1](in_port) to port [2](out_port) with priority [40000](priority)
     - set flow on [of:0000000000000002](device_id) from port [3](in_port) to [4](out_port) at priority [30000](priority)
-    - insert flow rule for [of:0000000000000003](device_id) input port [5](in_port) output port [6](out_port)
-    - add flow rule to device [of:0000000000000001](device_id)
-    - add flow from port [2](in_port) to [3](out_port) on [of:0000000000000001](device_id)
-    - add flow to [of:0000000000000001](device_id) from port [1](in_port) to port [2](out_port) with priority [40000](priority)
-    - set flow on [of:0000000000000002](device_id) from port [3](in_port) to [4](out_port) at priority [30000](priority)
-    - insert flow rule for [of:0000000000000003](device_id) input port [5](in_port) output port [6](out_port)
-    - add flow rule to device [of:0000000000000004](device_id) from port [2](in_port) to port [3](out_port) with priority [25000](priority)
-    - push flow to [of:0000000000000001](device_id) on port [1](in_port) to [2](out_port) with priority [40000](priority)
-    - create flow on [of:0000000000000005](device_id) from port [7](in_port) to port [8](out_port)
+    - insert flow rule for [of:0000000000000003](device_id) input port [5](in_port) output port [6](out_port) with priority [10000](priority)
+    - push flow to [of:0000000000000004](device_id) on port [2](in_port) to [3](out_port) at priority [25000](priority)
+    - add flow from port [7](in_port) to port [8](out_port) on [of:0000000000000005](device_id) with priority [45000](priority)
+    - create flow rule on [of:0000000000000006](device_id) with in port [1](in_port) and out port [2](out_port) and priority [100](priority)
+    - add flow on device [of:0000000000000003](device_id) with in port [1](in_port) and out port [2](out_port) and priority [45](priority)
+    - insert flow to switch [of:0000000000000007](device_id) from [1](in_port) to [2](out_port) with priority [300](priority)
+    - configure flow on [of:0000000000000008](device_id) input [1](in_port) output [2](out_port) with priority [5](priority)
+    - add flow on device [of:0000000000000003](device_id) with in port [1](in_port) and out port [2](out_port) and priority [45](priority)
+    - add flow on device [of:000000000000000c](device_id) with in port [1](in_port) and out port [2](out_port) and priority [1](priority)
+
+- intent: delete_flow
+  examples: |
+    - delete flow [0xabc123](flow_id) from device [of:0000000000000001](device_id)
+    - remove flow rule [0x456def](flow_id) on switch [of:0000000000000002](device_id)
+    - delete flow id [0x9ab3](flow_id) from [of:0000000000000003](device_id)
+    - delete flow [0x123abc](flow_id) from [of:0000000000000001](device_id)
+    - delete flow with ID [0xc00000232116aa](flow_id) on device [of:0000000000000001](device_id)
+    - remove flow with ID [0xdeadbeef](flow_id) from [of:0000000000000002](device_id)
+    - delete flow [0xabcdef1234](flow_id) on [of:0000000000000003](device_id)
 
 - intent: check_controllers
   examples: |
