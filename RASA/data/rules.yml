@@ -46,6 +46,11 @@ rules:
     - intent: add_flow
     - action: action_add_flow
 
+- rule: Delete flow on a device
+  steps:
+    - intent: delete_flow
+    - action: action_delete_flow
+
 - rule: check_controllers rule
   steps:
     - intent: check_controllers
