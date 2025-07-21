@@ -5,6 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <link rel="icon" href="./static/img/icon1.png">
   <title>SDN GPT</title>
+
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
   <style>
     * {
       box-sizing: border-box;
@@ -15,10 +18,10 @@
       --text-primary: #202123;
       --text-secondary: #6e7681;
       --border-light: #e5e7eb;
-      --user-bg: #10a37f;
+      --user-bg: #107ca3;
       --bot-bg: #f7f7f8;
       --hover-bg: #f1f1f2;
-      --accent: #10a37f;
+      --accent: #1066a3;
       --alert-bg: #f44336;
       
       --bg-primary-dark: #0f0f0f;
@@ -26,15 +29,16 @@
       --text-primary-dark: #ececec;
       --text-secondary-dark: #b4b4b4;
       --border-light-dark: #2f2f2f;
-      --user-bg-dark: #10a37f;
+      --user-bg-dark: #1074a3;
       --bot-bg-dark: #2f2f2f;
       --hover-bg-dark: #2f2f2f;
       --alert-bg-dark: #d32f2f;
     }
+
     body {
       margin: 0;
       padding: 0;
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+      font-family: 'Inter', 'Segoe UI', 'Roboto', sans-serif;
       background-color: var(--bg-primary);
       color: var(--text-primary);
       height: 100vh;
@@ -42,6 +46,7 @@
       flex-direction: column;
       transition: background-color 0.2s ease, color 0.2s ease;
     }
+
     body.dark {
       background-color: var(--bg-primary-dark);
       color: var(--text-primary-dark);
@@ -78,7 +83,7 @@
     .bot-avatar {
       width: 32px;
       height: 32px;
-      background: linear-gradient(135deg, #10a37f, #1a7f64);
+      background: linear-gradient(135deg, #1077a3, #1a557f);
       border-radius: 6px;
       display: flex;
       align-items: center;
@@ -193,7 +198,7 @@
       background-color: var(--user-bg-dark);
     }
     .bot-message .message-avatar {
-      background: linear-gradient(135deg, #10a37f, #1a7f64);
+      background: linear-gradient(135deg, #1077a3, #1a507f);
       color: white;
     }
     .message-content {
@@ -291,7 +296,7 @@
       flex-shrink: 0;
     }
     .send-button:hover {
-      background-color: #0d8f6f;
+      background-color: #0d5d8f;
     }
     .send-button:disabled {
       background-color: var(--text-secondary);
@@ -302,27 +307,52 @@
       height: 16px;
       color: white;
     }
-    /* Welcome message styling */
-    .welcome-message {
-      background: linear-gradient(135deg, #f7f7f8, #e9ecef);
-      border-radius: 12px;
-      padding: 20px;
-      margin-bottom: 16px;
-      border: 1px solid var(--border-light);
+
+    /* Welcome section styling - centered like PersonaGPT */
+    .welcome-section {
+      text-align: center;
+      padding: 60px 20px;
+      max-width: 600px;
+      margin: 0 auto;
     }
-    body.dark .welcome-message {
-      background: linear-gradient(135deg, var(--bg-secondary-dark), #1a1a1a);
-      border-color: var(--border-light-dark);
+    
+    .welcome-avatar {
+      width: 80px;
+      height: 80px;
+      background: linear-gradient(135deg, #107ea3, #1a5f7f);
+      border-radius: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      color: white;
+      font-size: 24px;
+      margin: 0 auto 24px auto;
+      box-shadow: 0 8px 25px rgba(16, 131, 163, 0.3);
     }
+    
     .welcome-title {
+      font-size: 32px;
       font-weight: 600;
-      font-size: 18px;
-      margin-bottom: 12px;
       color: var(--text-primary);
+      margin-bottom: 16px;
     }
+    
     body.dark .welcome-title {
       color: var(--text-primary-dark);
     }
+    
+    .welcome-subtitle {
+      font-size: 16px;
+      color: var(--text-secondary);
+      margin-bottom: 32px;
+      line-height: 1.6;
+    }
+    
+    body.dark .welcome-subtitle {
+      color: var(--text-secondary-dark);
+    }
+
     /* Capability buttons styling */
     .capabilities-container {
       margin-top: 16px;
@@ -407,7 +437,7 @@
       gap: 8px;
     }
     .quick-action-button {
-      background: linear-gradient(135deg, var(--accent), #0d8f6f);
+      background: linear-gradient(135deg, var(--accent), #0d648f);
       border: none;
       border-radius: 6px;
       padding: 8px 12px;
@@ -467,6 +497,20 @@
       
       .quick-actions-grid {
         grid-template-columns: repeat(2, 1fr);
+      }
+      
+      .welcome-section {
+        padding: 40px 16px;
+      }
+      
+      .welcome-title {
+        font-size: 28px;
+      }
+      
+      .welcome-avatar {
+        width: 60px;
+        height: 60px;
+        font-size: 20px;
       }
     }
   </style>
@@ -624,14 +668,15 @@
     }
     
     window.onload = function () {
-      // Create welcome message with interactive capability buttons
+      // Create welcome message similar to PersonaGPT style but with SDN capabilities
       const welcomeHTML = `
-        <div class="welcome-message">
-          <div class="welcome-title">Hello! I'm your SDN Network Bot</div>
-          <div>I can help you manage your Software-Defined Network with these capabilities:</div>
+        <div class="welcome-section">
+          <div class="welcome-avatar">SGPT</div>
+          <div class="welcome-title">Hello!!</div>
+          <div class="welcome-subtitle">I'm your SDN Network assistant. Choose a network management task and let's optimize your Software-Defined Network!</div>
           
           <div class="capabilities-container">
-            <div class="capabilities-title">🔧 Network Management</div>
+            <div class="capabilities-title">🔧 Network Management features available</div>
             <div class="capabilities-grid">
               <button class="capability-button" onclick="sendCapabilityMessage('Show devices')">
                 <span class="capability-icon">📱</span>
@@ -651,11 +696,11 @@
               </button>
               <button class="capability-button" onclick="sendCapabilityMessage('Delete flow rule')">
                 <span>🗑️</span>
-                Delete Flow (mention deviceID)
+                Delete Flow
               </button>
-              <button class="capability-button" onclick="sendCapabilityMessage('Help')">
-                <span>❓</span>
-                Help
+              <button class="capability-button" onclick="sendCapabilityMessage('find path')">
+                <span>જ⁀➴</span>
+                Find path between hosts
               </button>
             </div>
           </div>
