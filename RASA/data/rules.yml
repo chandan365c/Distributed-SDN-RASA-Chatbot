@@ -85,3 +85,8 @@ rules:
   steps:
     - intent: show_topology
     - action: action_show_topology
+
+- rule: find_path rule
+  steps:
+    - intent: find_path
+    - action: action_find_path
