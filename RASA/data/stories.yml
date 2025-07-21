@@ -44,6 +44,18 @@ stories:
     - intent: get_hosts
     - action: action_get_hosts
 
+- story: Find path between hosts
+  steps:
+    - intent: find_path
+    - action: action_find_path
+
+- story: Path finding with greet
+  steps:
+    - intent: greet
+    - action: utter_greet
+    - intent: find_path
+    - action: action_find_path
+
 - story: Fallback handling
   steps:
     - intent: nlu_fallback
