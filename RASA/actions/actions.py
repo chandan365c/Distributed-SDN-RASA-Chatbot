@@ -642,5 +642,67 @@ def monitor_controllers():
                 print(f"[ALERT] {alert}")
                 push_alert_to_ui(alert)
 
+def monitor_anomalies():
+    print("[*] Starting anomaly monitor...")
+
+    previous_stats = {}
+    ANOMALY_THRESHOLD = 100  # packets
+    POLL_INTERVAL = 5        # seconds
+
+    while True:
+        data = None
+
+        # Try each controller until one responds
+        for controller in ONOS_CONTROLLERS:
+            try:
+                url = f"http://{controller['ip']}:{controller['port']}/onos/v1/statistics/ports"
+                response = requests.get(url, auth=AUTH, timeout=3)
+                if response.status_code == 200:
+                    data = response.json()
+                    break
+            except Exception as e:
+                print(f"[WARN] Failed to fetch from {controller['ip']}:{controller['port']} — {e}")
+
+        if not data:
+            print("[ERROR] All controllers unreachable.")
+            time.sleep(POLL_INTERVAL)
+            continue
+
+        try:
+            current_stats = {}
+            anomalies = []
+
+            for device in data.get("statistics", []):
+                device_id = device.get("device")
+                for port in device.get("ports", []):
+                    port_number = str(port.get("port"))
+                    packets_rx = port.get("packetsReceived", 0)
+                    packets_tx = port.get("packetsSent", 0)
+
+                    key = f"{device_id}:{port_number}"
+                    current_stats[key] = (packets_rx, packets_tx)
+
+                    if key in previous_stats:
+                        prev_rx, prev_tx = previous_stats[key]
+                        delta_rx = packets_rx - prev_rx
+                        delta_tx = packets_tx - prev_tx
+
+                        if delta_rx > ANOMALY_THRESHOLD or delta_tx > ANOMALY_THRESHOLD:
+                            #msg = f"🚨 Anomaly on {key} → ΔRX: {delta_rx}, ΔTX: {delta_tx}"
+                            msg = f"🚨 Anomaly Detected! \nDevice: {device_id} \nPort: {port_number} \nChange in Received Packets (ΔRX): {delta_rx} \nChange in Sent Packets (ΔTX): {delta_tx}\nPlease investigate."
+                            print("[Anomaly]", msg)
+                            push_alert_to_ui(msg)
+
+            if not anomalies:
+                print("[✓] No anomalies detected.")
+
+            previous_stats = current_stats
+
+        except Exception as e:
+            print(f"[ERROR] in monitor_anomalies: {e}")
+
+        time.sleep(POLL_INTERVAL)
+
 # Start monitor thread on action server startup
 threading.Thread(target=monitor_controllers, daemon=True).start()
+threading.Thread(target=monitor_anomalies, daemon=True).start()
