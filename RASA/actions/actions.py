@@ -688,7 +688,6 @@ def monitor_anomalies():
                         delta_tx = packets_tx - prev_tx
 
                         if delta_rx > ANOMALY_THRESHOLD or delta_tx > ANOMALY_THRESHOLD:
-                            #msg = f"🚨 Anomaly on {key} → ΔRX: {delta_rx}, ΔTX: {delta_tx}"
                             msg = f"🚨 Anomaly Detected! \nDevice: {device_id} \nPort: {port_number} \nChange in Received Packets (ΔRX): {delta_rx} \nChange in Sent Packets (ΔTX): {delta_tx}\nPlease investigate."
                             print("[Anomaly]", msg)
                             push_alert_to_ui(msg)
