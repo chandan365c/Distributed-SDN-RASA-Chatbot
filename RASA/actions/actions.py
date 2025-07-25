@@ -6,13 +6,18 @@ from rasa_sdk.events import SlotSet, EventType
 import time
 import json
 import logging
+import requests
 import threading
-import re
+from datetime import datetime
+#import os
+#from requests.auth import HTTPBasicAuth
+#from collections import defaultdict
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# Configurable ONOS controllers (IPs and ports)
 ONOS_CONTROLLERS = [
     {"ip": "localhost", "port": 8181},
     {"ip": "localhost", "port": 8182},
@@ -23,34 +28,72 @@ ONOS_CONTROLLERS = [
 
 AUTH = ("onos", "rocks")
 
-def send_to_healthy_controller(endpoint: str, method="get", data=None, json_payload=None, device_id=None, require_mastership=False) -> Any:
+
+# === Utility: Request with failover and mastership-aware ===
+def send_to_healthy_controller(endpoint: str, method="get", data=None, json=None, device_id=None, require_mastership=False) -> Any:
+    """
+    Send request to a healthy ONOS controller with failover support.
+    
+    Args:
+        endpoint: API endpoint to call
+        method: HTTP method (get, post, put, delete)
+        data: Request data for non-JSON payloads
+        json: JSON payload for requests
+        device_id: Device ID for mastership checks
+        require_mastership: Whether to check mastership before sending request
+    
+    Returns:
+        Response data or error dictionary
+    """
     for ctrl in ONOS_CONTROLLERS:
         try:
+            # If checking mastership is required
             if require_mastership and device_id:
                 master_url = f"http://{ctrl['ip']}:{ctrl['port']}/onos/v1/mastership/{device_id}"
-                master_resp = requests.get(master_url, auth=AUTH, timeout=2)
-                if master_resp.ok:
-                    master_id = master_resp.json().get("master", {}).get("id", "")
-                    if master_id and f"{ctrl['ip']}:{ctrl['port']}" not in master_id:
+                try:
+                    master_resp = requests.get(master_url, auth=AUTH, timeout=2)
+                    if master_resp.ok:
+                        master_data = master_resp.json()
+                        master_id = master_data.get("master", {}).get("id", "")
+                        # Check if this controller is the master
+                        if master_id and f"{ctrl['ip']}:{ctrl['port']}" not in master_id:
+                            logger.info(f"Controller {ctrl['ip']}:{ctrl['port']} is not master for device {device_id}")
+                            continue
+                    else:
+                        logger.warning(f"Failed to check mastership on {ctrl['ip']}:{ctrl['port']}")
                         continue
-                else:
+                except requests.RequestException as e:
+                    logger.warning(f"Mastership check failed for {ctrl['ip']}:{ctrl['port']}: {e}")
                     continue
+
+            # Send the actual request
             url = f"http://{ctrl['ip']}:{ctrl['port']}{endpoint}"
-            resp = requests.request(method, url, auth=AUTH, timeout=5, data=data, json=json_payload)
+            logger.info(f"Sending {method.upper()} request to {url}")
+            
+            resp = requests.request(method, url, auth=AUTH, timeout=5, data=data, json=json)
+            
             if resp.ok:
+                # Return JSON if content type is JSON, otherwise return text
                 if resp.headers.get("Content-Type", "").startswith("application/json"):
                     return resp.json()
                 else:
                     return {"status": "success", "message": resp.text}
-        except requests.RequestException:
-            time.sleep(0.1)
+            else:
+                logger.warning(f"Request failed with status {resp.status_code}: {resp.text}")
+                
+        except requests.RequestException as e:
+            logger.warning(f"Request to {ctrl['ip']}:{ctrl['port']} failed: {e}")
+            time.sleep(0.1)  # Small delay before trying next controller
             continue
+    
     return {"error": "All controllers unreachable or not master for this device"}
+
 
 def extract_slot_value(tracker: Tracker, slot_name: str) -> str:
     value = tracker.get_slot(slot_name)
     return value.strip() if value else None
-    
+
+
 # === Action: Get Devices ===
 #### Works ####
 class ActionGetDevices(Action):
@@ -146,6 +189,7 @@ class ActionAddFlow(Action):
 
         return []
 
+
 # === Action: Delete Flow ===
 class ActionDeleteFlow(Action):
     def name(self) -> Text:
@@ -188,6 +232,7 @@ class ActionDeleteFlow(Action):
         dispatcher.utter_message(text="❌ Failed to delete the flow. All controllers may be unreachable or not master.")
         return []
 
+
 # === Action: Get Controller Status ===
 #### Works ####
 class ActionCheckControllers(Action):
@@ -216,6 +261,7 @@ class ActionCheckControllers(Action):
             dispatcher.utter_message(text="🔴 **Unreachable Controllers:**\n" + "\n".join(unreachable))
 
         return []
+
 
 # === Action: Default Fallback ===
 #### Works ####
@@ -258,7 +304,7 @@ class ActionGetHosts(Action):
                     element_id = location_obj.get("elementId", "Unknown")
                     port = location_obj.get("port", "Unknown")
 
-                    host_list.append(f" {host_id} (MAC: {mac}, IP: {ip})")
+                    host_list.append(f"🏠 {host_id} (MAC: {mac}, IP: {ip})")
 
                 message = f"🏠 Number of Network Hosts ({len(hosts)}):\n" + "\n".join(host_list)
                 dispatcher.utter_message(text=message)
@@ -266,6 +312,7 @@ class ActionGetHosts(Action):
                 dispatcher.utter_message(text="📭 No hosts found in the network.")
 
         return []
+
 
 # === Action: Block Host ===
 class ActionBlockHost(Action):
@@ -350,6 +397,7 @@ class ActionBlockHost(Action):
         dispatcher.utter_message(text=f"❌ Failed to block host {host_id}. All controllers unreachable or not master for this device.")
         return []
 
+
 # === Action: Unblock Host ===
 class ActionUnblockHost(Action):
     def name(self) -> str:
@@ -377,44 +425,34 @@ class ActionGetPorts(Action):
     def name(self) -> str:
         return "action_get_ports"
 
-    def run(
-        self,
-        dispatcher: CollectingDispatcher,
-        tracker: Tracker,
-        domain: Dict[str, Any]
-    ) -> List[EventType]:
+    def run(self, dispatcher: CollectingDispatcher, tracker: Tracker, domain: Dict[str, Any]) -> List[EventType]:
         device_id = tracker.get_slot("device_id")
-
-        user_input = tracker.latest_message.get("text", "").lower().strip()
-        if not device_id or user_input in ["show ports", "get ports", "ports", "port status"]:
-            dispatcher.utter_message(
-                text="⚠️ Please specify a device ID.\n"
-                     "Example: `show ports on device of:0000000000000001`"
-            )
-            return [SlotSet("device_id", None)]
-
+        if not device_id:
+            dispatcher.utter_message(text="⚠️ Please specify a device ID (e.g., 'show ports on device of:0000000000000001')")
+            return []
+        
         logger.info(f"Getting ports for device: {device_id}")
         result = send_to_healthy_controller(f"/onos/v1/devices/{device_id}/ports")
-
+        
         if "error" in result:
-            dispatcher.utter_message(text=f"❌ Failed to fetch ports for device `{device_id}`.")
-            return []
-
-        ports = result.get("ports", [])
-        if ports:
-            port_list = []
-            for port in ports:
-                port_num = port.get("port", "Unknown")
-                enabled = "✅" if port.get("isEnabled", False) else "❌"
-                speed = port.get("portSpeed", "Unknown")
-                port_list.append(f"{enabled} Port {port_num} (Speed: {speed})")
-
-            message = f"🔌 **Ports on `{device_id}` ({len(ports)} total):**\n" + "\n".join(port_list)
-            dispatcher.utter_message(text=message)
+            dispatcher.utter_message(text=f"❌ Failed to fetch ports for device {device_id}.")
         else:
-            dispatcher.utter_message(text=f"📭 No ports found on device `{device_id}`.")
-
+            ports = result.get("ports", [])
+            if ports:
+                port_list = []
+                for port in ports:
+                    port_num = port.get("port", "Unknown")
+                    enabled = "✅" if port.get("isEnabled", False) else "❌"
+                    speed = port.get("portSpeed", "Unknown")
+                    port_list.append(f"{enabled} Port {port_num} (Speed: {speed})")
+                
+                message = f"🔌 **Ports on {device_id} ({len(ports)}):**\n" + "\n".join(port_list)
+                dispatcher.utter_message(text=message)
+            else:
+                dispatcher.utter_message(text=f"📭 No ports found on device {device_id}.")
+        
         return []
+
 
 # === Action: Get Flows ===
 #### Works ####
@@ -434,7 +472,7 @@ class ActionGetFlows(Action):
                 device_id = match.group(1)
 
         if not device_id:
-            dispatcher.utter_message(text="⚠️ Please specify a device ID \n Example: 'show flows on device of:0000000000000001'")
+            dispatcher.utter_message(text="⚠️ Please specify a device ID (e.g., 'show flows on device of:0000000000000001')")
             return []
 
         logger.info(f"Getting flows for device: {device_id}")
@@ -606,11 +644,13 @@ def push_alert_to_ui(text):
     except Exception as e:
         print(f"[Alert Push Error] {e}")
 
+
 # Monitor Function
 def monitor_controllers():
     down_set = set()
 
     while True:
+        alert = None
         for ctrl in ONOS_CONTROLLERS:
             ip, port = ctrl["ip"], ctrl["port"]
             url = f"http://{ip}:{port}/onos/v1/cluster"
@@ -635,12 +675,21 @@ def monitor_controllers():
 
         time.sleep(10)
 
-        # Only push alert if something went down in this cycle
-        if down_set:
-            for down in down_set:
-                alert = f"🔴 ALERT: Controller at {down} is DOWN!"
-                print(f"[ALERT] {alert}")
-                push_alert_to_ui(alert)
+def classify_anomaly(delta_rx, delta_tx):
+    total = delta_rx + delta_tx
+    if total > 5000:
+        return "🔥 Possible DoS or heavy traffic spike"
+    elif delta_rx > 3000 and delta_tx < 100:
+        return "🕵️ Suspicious inbound spike (port scan or flood)"
+    elif delta_tx > 3000 and delta_rx < 100:
+        return "⚠️ Suspicious outbound spike (data exfiltration?)"
+    elif 1000 < total <= 5000:
+        return "📶 Moderate traffic spike"
+    else:
+        return "❓ Unknown anomaly pattern"
+
+
+ANOMALY_LOG_FILE = "anomalies.log"
 
 def monitor_anomalies():
     print("[*] Starting anomaly monitor...")
@@ -651,19 +700,25 @@ def monitor_anomalies():
 
     while True:
         data = None
+        hosts_data = None
 
         # Try each controller until one responds
         for controller in ONOS_CONTROLLERS:
             try:
-                url = f"http://{controller['ip']}:{controller['port']}/onos/v1/statistics/ports"
-                response = requests.get(url, auth=AUTH, timeout=3)
-                if response.status_code == 200:
-                    data = response.json()
+                stats_url = f"http://{controller['ip']}:{controller['port']}/onos/v1/statistics/ports"
+                hosts_url = f"http://{controller['ip']}:{controller['port']}/onos/v1/hosts"
+
+                stats_response = requests.get(stats_url, auth=AUTH, timeout=3)
+                hosts_response = requests.get(hosts_url, auth=AUTH, timeout=3)
+
+                if stats_response.status_code == 200 and hosts_response.status_code == 200:
+                    data = stats_response.json()
+                    hosts_data = hosts_response.json()
                     break
             except Exception as e:
                 print(f"[WARN] Failed to fetch from {controller['ip']}:{controller['port']} — {e}")
 
-        if not data:
+        if not data or not hosts_data:
             print("[ERROR] All controllers unreachable.")
             time.sleep(POLL_INTERVAL)
             continue
@@ -688,11 +743,39 @@ def monitor_anomalies():
                         delta_tx = packets_tx - prev_tx
 
                         if delta_rx > ANOMALY_THRESHOLD or delta_tx > ANOMALY_THRESHOLD:
-                            msg = f"🚨 Anomaly Detected! \nDevice: {device_id} \nPort: {port_number} \nChange in Received Packets (ΔRX): {delta_rx} \nChange in Sent Packets (ΔTX): {delta_tx}\nPlease investigate."
-                            print("[Anomaly]", msg)
-                            push_alert_to_ui(msg)
+                            anomalies.append((device_id, port_number, delta_rx, delta_tx))
 
-            if not anomalies:
+            if anomalies:
+                hosts = hosts_data.get("hosts", [])
+                for device_id, port_number, delta_rx, delta_tx in anomalies:
+
+                    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    # Try to match host to this port
+                    suspect_host = None
+                    for host in hosts:
+                        for loc in host.get("locations", []):
+                            if loc.get("elementId") == device_id and str(loc.get("port")) == port_number:
+                                ip = host.get("ipAddresses", ["?"])[0]
+                                mac = host.get("mac", "?")
+                                suspect_host = f"{ip} ({mac})"
+                                break
+
+                    classification = classify_anomaly(delta_rx, delta_tx)
+                    msg = (
+                        f"[{timestamp}] 🚨 Anomaly Detected on {device_id}:{port_number} → ΔRX: {delta_rx}, ΔTX: {delta_tx}\n"
+                        f"🔎 Type: {classification}"
+                    )
+                    if suspect_host:
+                        msg += f"\n❓ Suspected Host: {suspect_host}\n🛡️ Suggestion: Block host {suspect_host}"
+
+                    print("[Anomaly]", msg)
+                    push_alert_to_ui(msg)
+
+                    # Log to file
+                    with open(ANOMALY_LOG_FILE, "a") as f:
+                        f.write(msg + "\n")
+
+            else:
                 print("[✓] No anomalies detected.")
 
             previous_stats = current_stats
