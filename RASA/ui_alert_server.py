@@ -2,12 +2,17 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from datetime import datetime
+import time
+import threading
 
 app = Flask(__name__)
 CORS(app)
 
 # Store list of alerts with timestamps
 alerts = []
+
+# Lock to safely access the queue from multiple threads
+queue_lock = threading.Lock()
 
 @app.route('/push_alert', methods=['POST'])
 def push_alert():
@@ -25,6 +30,18 @@ def push_alert():
 def get_alerts():
     return jsonify(alerts)
 
+def clear_alerts_periodically(interval=15):
+    while True:
+        time.sleep(interval)
+        with queue_lock:
+            if alerts:
+                print(f"[Cleaner] Clearing {len(alerts)} alerts.")
+            alerts.clear()
+
+# Start cleaner thread
+threading.Thread(target=clear_alerts_periodically, daemon=True).start()
+
+# CURRENTLY NOT USED/BEING CALLED ANYWHERE
 @app.route('/clear_alerts', methods=['POST'])
 def clear_alerts():
     alerts.clear()
