@@ -32,6 +32,16 @@ stories:
     - intent: unblock_host
     - action: action_unblock_host
 
+- story: Block host
+  steps:
+    - intent: block_host
+    - action: action_block_host
+
+- story: Unblock host
+  steps:
+    - intent: unblock_host
+    - action: action_unblock_host
+
 - story: Get ports and flows
   steps:
     - intent: get_ports
@@ -48,7 +58,7 @@ stories:
   steps:
     - intent: find_path
     - action: action_find_path
-
+    
 - story: Path finding with greet
   steps:
     - intent: greet
@@ -60,3 +70,8 @@ stories:
   steps:
     - intent: nlu_fallback
     - action: action_default_fallback
+
+- story: Bad context 
+  steps:
+    - intent: bad_context
+    - action: utter_default
