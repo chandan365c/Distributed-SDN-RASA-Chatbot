@@ -698,6 +698,54 @@ def monitor_controllers():
 
         time.sleep(10)
 
+def monitor_topology_health():
+    print("[*] Monitoring switches and links...")
+
+    known_devices = set()
+    known_links = set()
+
+    while True:
+        try:
+            for ctrl in ONOS_CONTROLLERS:
+                url_devices = f"http://{ctrl['ip']}:{ctrl['port']}/onos/v1/devices"
+                url_links = f"http://{ctrl['ip']}:{ctrl['port']}/onos/v1/links"
+                resp_d = requests.get(url_devices, auth=AUTH, timeout=2)
+                resp_l = requests.get(url_links, auth=AUTH, timeout=2)
+
+                if resp_d.status_code == 200 and resp_l.status_code == 200:
+                    devices_json = resp_d.json()
+                    links_json = resp_l.json()
+
+                    current_devices = set(
+                        d["id"] for d in devices_json.get("devices", []) if d.get("available", False)
+                    )
+
+                    current_links = set(
+                        f"{l['src']['device']}->{l['dst']['device']}"
+                        for l in links_json.get("links", [])
+                    )
+
+                    # Detect down devices or links
+                    missing_devices = known_devices - current_devices
+                    missing_links = known_links - current_links
+
+                    for d in missing_devices:
+                        print(f"🚨 Switch offline: {d}")
+                        push_alert_to_ui(f"🚨 Switch offline: {d}")
+                    for l in missing_links:
+                        print(f"🚨 Link down: {l}")
+                        push_alert_to_ui(f"🚨 Link down: {l}")
+
+                    known_devices = current_devices
+                    known_links = current_links
+                    break
+
+        except Exception as e:
+            print(f"[ERROR] in topology monitor: {e}")
+
+        time.sleep(5)
+        
+
 def classify_anomaly(delta_rx, delta_tx):
     total = delta_rx + delta_tx
     if total > 5000:
@@ -811,3 +859,4 @@ def monitor_anomalies():
 # Start monitor thread on action server startup
 threading.Thread(target=monitor_controllers, daemon=True).start()
 threading.Thread(target=monitor_anomalies, daemon=True).start()
+threading.Thread(target=monitor_topology_health, daemon=True).start()
