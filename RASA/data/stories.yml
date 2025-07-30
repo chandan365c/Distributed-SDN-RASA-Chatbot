@@ -75,3 +75,18 @@ stories:
   steps:
     - intent: bad_context
     - action: utter_default
+
+- story: show port stats story
+  steps:
+  - intent: show_port_stats
+  - action: action_show_port_stats
+
+- story: show flow stats story
+  steps:
+  - intent: show_flow_stats
+  - action: action_show_flow_stats
+
+- story: export metrics story
+  steps:
+  - intent: export_metrics
+  - action: action_export_metrics
