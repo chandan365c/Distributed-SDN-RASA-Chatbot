@@ -9,6 +9,17 @@ import logging
 import requests
 import threading
 from datetime import datetime
+from influxdb_client import InfluxDBClient, Point, WritePrecision
+from influxdb_client.client.write_api import SYNCHRONOUS
+
+INFLUX_URL = "http://localhost:8086"
+INFLUX_TOKEN = "lkyDDMbKr4XGNxD21XwJiTpiN--Wx4JUqhGEv6idbnC5Wn7N-nKRVoqQRYdm3zIM48JEy9LJDDhQFyDSQGRd8w=="
+INFLUX_ORG = "sdn_org"
+INFLUX_BUCKET = "sdn_metrics"
+
+influx_client = InfluxDBClient(url=INFLUX_URL, token=INFLUX_TOKEN, org=INFLUX_ORG)
+write_api = influx_client.write_api(write_options=SYNCHRONOUS)
+
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -667,36 +678,29 @@ def push_alert_to_ui(text):
     except Exception as e:
         print(f"[Alert Push Error] {e}")
 
+# Show port statistics
+class ActionShowPortStats(Action):
+    def name(self) -> Text:
+        return "action_show_port_stats"
 
-# Monitor Function
-def monitor_controllers():
-    down_set = set()
+    def run(self, dispatcher, tracker, domain):
+        result = send_to_healthy_controller("/onos/v1/statistics/ports")
 
-    while True:
-        alert = None
-        for ctrl in ONOS_CONTROLLERS:
-            ip, port = ctrl["ip"], ctrl["port"]
-            url = f"http://{ip}:{port}/onos/v1/cluster"
+        if "error" in result:
+            dispatcher.utter_message(text="❌ Failed to fetch port statistics from any controller.")
+            return []
 
-            try:
-                res = requests.get(url, auth=AUTH, timeout=2)
-                if res.status_code == 200:
-                    if f"{ip}:{port}" in down_set:
-                        print(f"✅ {ip}:{port} recovered")
-                        down_set.remove(f"{ip}:{port}")
-                else:
-                    raise Exception()
-            except:
-                if f"{ip}:{port}" not in down_set:
-                    down_set.add(f"{ip}:{port}")
-                    alert = f"🔴 ALERT: Controller at {ip}:{port} is DOWN!"
-                    print(f"[ALERT] {alert}")
-                    try:
-                        push_alert_to_ui(alert)
-                    except Exception as e:
-                        print(f"[UI Alert Error] {e}")
+        messages = ["📊 **Port Statistics Summary:**"]
+        for device in result.get("statistics", []):
+            device_id = device.get("device", "Unknown")
+            for port in device.get("ports", []):
+                port_no = port.get("port", "N/A")
+                rx = port.get("packetsReceived", 0)
+                tx = port.get("packetsSent", 0)
+                messages.append(f"🔌 {device_id}:{port_no} → RX: {rx}, TX: {tx}")
 
-        time.sleep(10)
+        dispatcher.utter_message(text="\n".join(messages))
+        return []
 
 def monitor_topology_health():
     print("[*] Monitoring switches and links...")
@@ -745,6 +749,162 @@ def monitor_topology_health():
 
         time.sleep(5)
         
+
+#Show flow statistics
+class ActionShowFlowStats(Action):
+    def name(self) -> Text:
+        return "action_show_flow_stats"
+
+    def run(self, dispatcher, tracker, domain):
+        result = send_to_healthy_controller("/onos/v1/devices")
+
+        if "error" in result:
+            dispatcher.utter_message(text="❌ Could not fetch device list.")
+            return []
+
+        devices = result.get("devices", [])
+        if not devices:
+            dispatcher.utter_message(text="📭 No devices found.")
+            return []
+
+        messages = ["📈 Flow Stats by Device:"]
+        for device in devices:
+            device_id = device.get("id")
+            flow_result = send_to_healthy_controller(f"/onos/v1/flows/{device_id}")
+            if "error" in flow_result:
+                messages.append(f"❌ {device_id}: Failed to fetch flow info")
+                continue
+
+            flow_count = len(flow_result.get("flows", []))
+            messages.append(f"🔁 {device_id}: {flow_count} flows")
+
+        dispatcher.utter_message(text="\n".join(messages))
+        return []
+
+# Export flow metrics
+class ActionExportFlowMetrics(Action):
+    def name(self) -> Text:
+        return "action_export_flow_metrics"
+
+    def run(self, dispatcher, tracker, domain):
+        try:
+            devices_resp = send_to_healthy_controller("/onos/v1/devices")
+            if "error" in devices_resp:
+                dispatcher.utter_message(text="❌ Could not fetch device list for flow stats export.")
+                return []
+
+            devices = devices_resp.get("devices", [])
+            now = datetime.utcnow()
+
+            for device in devices:
+                device_id = device.get("id")
+                flow_resp = send_to_healthy_controller(f"/onos/v1/flows/{device_id}")
+                if "error" in flow_resp:
+                    continue
+
+                flow_count = len(flow_resp.get("flows", []))
+
+                point = Point("flow_stats") \
+                    .tag("device", device_id) \
+                    .field("flow_count", flow_count) \
+                    .time(now, WritePrecision.NS)
+
+                write_api.write(bucket=INFLUX_BUCKET, org=INFLUX_ORG, record=point)
+
+            dispatcher.utter_message(text="✅ Flow stats exported to InfluxDB for Grafana.")
+        except Exception as e:
+            dispatcher.utter_message(text=f"❌ Error exporting flow metrics: {e}")
+        return []
+
+#Export metrics
+class ActionExportMetrics(Action):
+    def name(self) -> Text:
+        return "action_export_metrics"
+
+    def run(self, dispatcher, tracker, domain):
+        try:
+            result = send_to_healthy_controller("/onos/v1/statistics/ports")
+            now = datetime.utcnow()
+
+            for device in result.get("statistics", []):
+                device_id = device.get("device")
+                for port in device.get("ports", []):
+                    port_no = str(port.get("port"))
+                    rx = port.get("packetsReceived", 0)
+                    tx = port.get("packetsSent", 0)
+
+                    point = Point("port_traffic") \
+                        .tag("device", device_id) \
+                        .tag("port", port_no) \
+                        .field("rx", rx) \
+                        .field("tx", tx) \
+                        .time(now, WritePrecision.NS)
+
+                    write_api.write(bucket=INFLUX_BUCKET, org=INFLUX_ORG, record=point)
+
+            dispatcher.utter_message(text="✅ Port stats exported to InfluxDB for Grafana.")
+        except Exception as e:
+            dispatcher.utter_message(text=f"❌ Error exporting metrics: {e}")
+        return []
+
+#Push stats periodically
+def push_port_stats_periodically():
+    while True:
+        try:
+            result = send_to_healthy_controller("/onos/v1/statistics/ports")
+            now = datetime.utcnow()
+
+            for device in result.get("statistics", []):
+                device_id = device.get("device")
+                for port in device.get("ports", []):
+                    port_no = str(port.get("port"))
+                    rx = port.get("packetsReceived", 0)
+                    tx = port.get("packetsSent", 0)
+
+                    point = Point("port_traffic") \
+                        .tag("device", device_id) \
+                        .tag("port", port_no) \
+                        .field("rx", rx) \
+                        .field("tx", tx) \
+                        .time(now, WritePrecision.NS)
+
+                    write_api.write(bucket=INFLUX_BUCKET, org=INFLUX_ORG, record=point)
+
+            print("[✓] Port stats pushed to InfluxDB.")
+        except Exception as e:
+            print(f"[ERROR] Periodic export failed: {e}")
+
+        time.sleep(5)
+
+# Monitor Function
+def monitor_controllers():
+    down_set = set()
+
+    while True:
+        alert = None
+        for ctrl in ONOS_CONTROLLERS:
+            ip, port = ctrl["ip"], ctrl["port"]
+            url = f"http://{ip}:{port}/onos/v1/cluster"
+
+            try:
+                res = requests.get(url, auth=AUTH, timeout=2)
+                if res.status_code == 200:
+                    if f"{ip}:{port}" in down_set:
+                        print(f"✅ {ip}:{port} recovered")
+                        down_set.remove(f"{ip}:{port}")
+                else:
+                    raise Exception()
+            except:
+                if f"{ip}:{port}" not in down_set:
+                    down_set.add(f"{ip}:{port}")
+                    alert = f"🔴 ALERT: Controller at {ip}:{port} is DOWN!"
+                    print(f"[ALERT] {alert}")
+                    try:
+                        push_alert_to_ui(alert)
+                    except Exception as e:
+                        print(f"[UI Alert Error] {e}")
+
+        time.sleep(10)
 
 def classify_anomaly(delta_rx, delta_tx):
     total = delta_rx + delta_tx
@@ -859,4 +1019,5 @@ def monitor_anomalies():
 # Start monitor thread on action server startup
 threading.Thread(target=monitor_controllers, daemon=True).start()
 threading.Thread(target=monitor_anomalies, daemon=True).start()
+threading.Thread(target=push_port_stats_periodically, daemon=True).start()
 threading.Thread(target=monitor_topology_health, daemon=True).start()
