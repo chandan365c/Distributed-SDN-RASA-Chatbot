@@ -103,7 +103,8 @@ These will trigger real-time API calls to your ONOS cluster and reflect changes 
 
 ## Publication details
 
-Accepted and published at SmartCom2026, Pune on 19th January 2026 in Springer Nature LLNS.
+Accepted and published at SmartCom2026, Pune on 19th January 2026 in Springer Nature LNNS.
+https://link.springer.com/chapter/10.1007/978-3-032-27563-9_3
 
 ---
 
